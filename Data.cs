@@ -2,9 +2,9 @@
 //#r "System.Data.dll"
 
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
-using System.Collections.Generic;
 using System.Dynamic;
 using System.Threading.Tasks;
 
@@ -37,6 +37,8 @@ public class Startup
         {
             case "query":
                 return await ExecuteQuery(commandString);
+            case "scalar":
+                return await ExecuteScalar(commandString);
             case "command":
                 return await ExecuteNonQuery(commandString);
             default:
@@ -90,6 +92,27 @@ public class Startup
                         return rows;
                     }
                 }
+            }
+        }
+        finally
+        {
+            if (connection != null)
+                connection.Close();
+        }
+    }
+
+    private async Task<object> ExecuteScalar(string query)
+    {
+        OleDbConnection connection = null;
+
+        try
+        {
+            using (connection = new OleDbConnection(_ConnectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var command = new OleDbCommand(query, connection))
+                    return await command.ExecuteScalarAsync();
             }
         }
         finally

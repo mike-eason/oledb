@@ -30,6 +30,9 @@ module.exports = function(constring) {
         query: function(command) {
             return executePromise(command, 'query');
         },
+        scalar: function(command) {
+            return executePromise(command, 'scalar');
+        },
         execute: function(command) {
             return executePromise(command, 'command');
         }
