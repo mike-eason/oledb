@@ -1,5 +1,5 @@
 const edge = require('edge');
-const data = edge.func('Data.cs');
+const data = edge.func(__dirname + '/Data.cs');
 
 let connectionString;
 
