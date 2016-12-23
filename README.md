@@ -1,7 +1,7 @@
-#OLE DB Edge
+# OLE DB Edge
 A small **promise based** module which uses [Edge](https://github.com/tjanczuk/edge) to connect and execute queries for an [OLE DB](https://en.wikipedia.org/wiki/OLE_DB).
 
-##Example
+## Example
 ```
 const connectionString = 'provider=vfpoledb;data source=C:/MyDatabase.dbc';
 const oledb = require('oledb-edge')(connectionString);
@@ -17,10 +17,10 @@ function(error) {
 });
 ```
 
-##Installation
+## Installation
 ```
 npm install oledb-edge --save
 ```
 
-##License
+## License
 This project is licensed under [MIT](LICENSE).
