@@ -4,13 +4,15 @@ A small **promise based** module which uses [Edge](https://github.com/tjanczuk/e
 ## Example
 ```
 const connectionString = 'provider=vfpoledb;data source=C:/MyDatabase.dbc';
-const oledb = require('oledb')(connectionString);
+
+const oledb = require('oledb');
+const db = oledb(connectionString);
 
 let command = 'select * from account';
 
-oledb.query(command)
-.then(function(data) {
-    console.log(data);
+db.query(command)
+.then(function(results) {
+    console.log(results[0]);
 },
 function(error) {
     console.error(error);

@@ -58,38 +58,17 @@ public class Startup
 
                 using (var command = new OleDbCommand(query, connection))
                 {
-                    List<object> rows = new List<object>();
+                    List<object> results = new List<object>();
 
                     using (OleDbDataReader reader = command.ExecuteReader())
                     {
-                        IDataRecord row = reader;
-
-                        while (await reader.ReadAsync())
+                        do
                         {
-                            var data = new ExpandoObject() as IDictionary<string, object>;
-                            var result = new object[row.FieldCount];
-                            row.GetValues(result);
-
-                            for (int i = 0; i < row.FieldCount; i++)
-                            {
-                                Type type = row.GetFieldType(i);
-
-                                if (result[i] is DBNull)
-                                    result[i] = null;
-                                else if (type == typeof(byte[]) || type == typeof(char[]))
-                                    result[i] = Convert.ToBase64String((byte[])result[i]);
-                                else if (type == typeof(Guid) || type == typeof(DateTime))
-                                    result[i] = result[i].ToString();
-                                else if (type == typeof(IDataReader))
-                                    result[i] = "<IDataReader>";
-
-                                data.Add(row.GetName(i), result[i]);
-                            }
-
-                            rows.Add(data);
+                            results.Add(await ParseReaderRow(reader));
                         }
+                        while (await reader.NextResultAsync());
 
-                        return rows;
+                        return results;
                     }
                 }
             }
@@ -99,6 +78,39 @@ public class Startup
             if (connection != null)
                 connection.Close();
         }
+    }
+
+    private async Task<List<object>> ParseReaderRow(OleDbDataReader reader)
+    {
+        List<object> rows = new List<object>();
+        IDataRecord row = reader;
+
+        while (await reader.ReadAsync())
+        {
+            var data = new ExpandoObject() as IDictionary<string, object>;
+            var result = new object[row.FieldCount];
+            row.GetValues(result);
+
+            for (int i = 0; i < row.FieldCount; i++)
+            {
+                Type type = row.GetFieldType(i);
+
+                if (result[i] is DBNull)
+                    result[i] = null;
+                else if (type == typeof(byte[]) || type == typeof(char[]))
+                    result[i] = Convert.ToBase64String((byte[])result[i]);
+                else if (type == typeof(Guid) || type == typeof(DateTime))
+                    result[i] = result[i].ToString();
+                else if (type == typeof(IDataReader))
+                    result[i] = "<IDataReader>";
+
+                data.Add(row.GetName(i), result[i]);
+            }
+
+            rows.Add(data);
+        }
+
+        return rows;
     }
 
     private async Task<object> ExecuteScalar(string query)
