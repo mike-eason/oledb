@@ -1,13 +1,11 @@
 const edge = require('edge');
 const data = edge.func(__dirname + '/Data.cs');
 
-let connectionString;
-
 module.exports = function(constring) {
     if (constring == null || constring.trim() === '')
         throw 'constring must not be null or empty';
 
-    connectionString = constring;
+    let connectionString = constring;
 
     function executePromise(command, type) {
         return new Promise(function(resolve, reject) {
