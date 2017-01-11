@@ -7,12 +7,13 @@ module.exports = function(constring) {
 
     let connectionString = constring;
 
-    function executePromise(command, type) {
+    function executePromise(command, type, params) {
         return new Promise(function(resolve, reject) {
             let options = {
                 constring: connectionString,
                 query: command,
-                type: type
+                type: type,
+                params: params || []
             };
 
             data(options, (err, data) => {
@@ -25,14 +26,14 @@ module.exports = function(constring) {
     }
 
     return {
-        query: function(command) {
-            return executePromise(command, 'query');
+        query: function(command, params) {
+            return executePromise(command, 'query', params);
         },
-        scalar: function(command) {
-            return executePromise(command, 'scalar');
+        scalar: function(command, params) {
+            return executePromise(command, 'scalar', params);
         },
-        execute: function(command) {
-            return executePromise(command, 'command');
+        execute: function(command, params) {
+            return executePromise(command, 'command', params);
         }
     };
 };

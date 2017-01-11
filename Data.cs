@@ -14,39 +14,26 @@ public class Startup
 
     public async Task<object> Invoke(IDictionary<string, object> parameters)
     {
-        _ConnectionString = parameters["constring"].ToString();
+        //Convert the input parameters to a useable object.
+        ParameterCollection pcol = new ParameterCollection(parameters);
 
-        if (string.IsNullOrEmpty(_ConnectionString))
-            throw new ArgumentNullException("constring");
+        _ConnectionString = pcol.ConnectionString;
 
-        string commandString = parameters["query"].ToString();
-
-        if (string.IsNullOrEmpty(_ConnectionString))
-            throw new ArgumentNullException("query");
-
-        object commandType = null;
-
-        parameters.TryGetValue("type", out commandType);
-
-        if (commandType == null)
-            commandType = "query";
-
-        string type = commandType.ToString().ToLower();
-
-        switch (type)
+        //Work out which query type to execute.
+        switch (pcol.QueryType)
         {
-            case "query":
-                return await ExecuteQuery(commandString);
-            case "scalar":
-                return await ExecuteScalar(commandString);
-            case "command":
-                return await ExecuteNonQuery(commandString);
+            case QueryTypes.query:
+                return await ExecuteQuery(pcol.Query, pcol.Parameters);
+            case QueryTypes.scalar:
+                return await ExecuteScalar(pcol.Query, pcol.Parameters);
+            case QueryTypes.command:
+                return await ExecuteNonQuery(pcol.Query, pcol.Parameters);
             default:
                 throw new InvalidOperationException("Unsupported type of SQL command type. Only query and command are supported.");
         }
     }
 
-    private async Task<object> ExecuteQuery(string query)
+    private async Task<object> ExecuteQuery(string query, object[] parameters)
     {
         OleDbConnection connection = null;
 
@@ -60,6 +47,8 @@ public class Startup
                 {
                     List<object> results = new List<object>();
 
+                    AddCommandParameters(command, parameters);
+
                     using (OleDbDataReader reader = command.ExecuteReader())
                     {
                         do
@@ -70,6 +59,56 @@ public class Startup
 
                         return results;
                     }
+                }
+            }
+        }
+        finally
+        {
+            if (connection != null)
+                connection.Close();
+        }
+    }
+
+    private async Task<object> ExecuteScalar(string query, object[] parameters)
+    {
+        OleDbConnection connection = null;
+
+        try
+        {
+            using (connection = new OleDbConnection(_ConnectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var command = new OleDbCommand(query, connection))
+                {
+                    AddCommandParameters(command, parameters);
+
+                    return await command.ExecuteScalarAsync();
+                }
+            }
+        }
+        finally
+        {
+            if (connection != null)
+                connection.Close();
+        }
+    }
+
+    private async Task<object> ExecuteNonQuery(string query, object[] parameters)
+    {
+        OleDbConnection connection = null;
+
+        try
+        {
+            using (connection = new OleDbConnection(_ConnectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var command = new OleDbCommand(query, connection))
+                {
+                    AddCommandParameters(command, parameters);
+
+                    return await command.ExecuteNonQueryAsync();
                 }
             }
         }
@@ -113,45 +152,75 @@ public class Startup
         return rows;
     }
 
-    private async Task<object> ExecuteScalar(string query)
+    private void AddCommandParameters(OleDbCommand command, object[] parameters)
     {
-        OleDbConnection connection = null;
-
-        try
+        //Generate names for each parameter and add them to the parameter collection.
+        for (int i = 0; i < parameters.Length; i++)
         {
-            using (connection = new OleDbConnection(_ConnectionString))
-            {
-                await connection.OpenAsync();
+            string name = string.Format("@p{0}", i + 1);
 
-                using (var command = new OleDbCommand(query, connection))
-                    return await command.ExecuteScalarAsync();
-            }
-        }
-        finally
-        {
-            if (connection != null)
-                connection.Close();
+            command.Parameters.Add(new OleDbParameter(name, parameters[i]));
         }
     }
+}
 
-    private async Task<object> ExecuteNonQuery(string query)
+public enum QueryTypes
+{
+    query,
+    scalar,
+    command
+}
+
+public class ParameterCollection
+{
+    private IDictionary<string, object> _Raw;
+
+    public string ConnectionString { get; private set; }
+    public QueryTypes QueryType { get; private set; }
+    public string Query { get; private set; }
+    public object[] Parameters { get; private set; }
+
+    public ParameterCollection(IDictionary<string, object> parameters)
     {
-        OleDbConnection connection = null;
+        if (parameters == null)
+            throw new ArgumentNullException("parameters");
 
-        try
-        {
-            using (connection = new OleDbConnection(_ConnectionString))
-            {
-                await connection.OpenAsync();
+        _Raw = parameters;
+        ParseRawParameters();
+    }
 
-                using (var command = new OleDbCommand(query, connection))
-                    return await command.ExecuteNonQueryAsync();
-            }
-        }
-        finally
-        {
-            if (connection != null)
-                connection.Close();
-        }
+    private void ParseRawParameters()
+    {
+        //Extract the connection string.
+        ConnectionString = _Raw["constring"].ToString();
+
+        if (string.IsNullOrEmpty(ConnectionString))
+            throw new ArgumentNullException("constring");
+
+        //Extract the query
+        Query = _Raw["query"].ToString();
+
+        if (string.IsNullOrEmpty(Query))
+            throw new ArgumentNullException("query");
+
+        //Extract and command type (optional)
+        object commandType = null;
+
+        _Raw.TryGetValue("type", out commandType);
+
+        if (commandType == null)
+            commandType = "query";
+
+        QueryType = (QueryTypes)Enum.Parse(typeof(QueryTypes), commandType.ToString().ToLower());
+
+        //Extract the parameters (optional)
+        object parameters = null;
+
+        _Raw.TryGetValue("params", out parameters);
+
+        if (parameters == null)
+            Parameters = new object[0];
+
+        Parameters = (object[])parameters;
     }
 }
