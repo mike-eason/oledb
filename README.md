@@ -8,7 +8,7 @@ A small **promise based** module which uses [Edge](https://github.com/tjanczuk/e
 [OLE DB](https://en.wikipedia.org/wiki/OLE_DB), [ODBC](https://en.wikipedia.org/wiki/Open_Database_Connectivity) or [SQL](https://en.wikipedia.org/wiki/SQL) database.
 
 ## Example
-```
+```js
 const connectionString = 'provider=vfpoledb;data source=C:/MyDatabase.dbc';
 
 const oledb = require('oledb');
@@ -38,7 +38,7 @@ The initializer can take up to two parameters:
 
 Here is an example:
 
-```
+```js
 const connectionString = 'Server=myServerAddress;Database=myDataBase;Trusted_Connection=True;';
 const connectionType = 'sql';
 
@@ -62,7 +62,7 @@ Where `command` is the query string and `parameters` is an array of parameter va
 ## Query Parameters
 Parameters are also supported and use positional parameters that are marked with a question mark (?) instead of named parameters. Here is an example:
 
-```
+```js
 let command = `
     select * from account 
     where
@@ -84,7 +84,7 @@ function(error) {
 ## Multiple Data Sets
 The `.query` promise has support for multiple data sets that can be returned in a single query. Here is an example:
 
-```
+```js
 let command = `
     select * from account;
     select * from address;
