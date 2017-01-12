@@ -4,122 +4,109 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
+using System.Data.Odbc;
 using System.Data.OleDb;
+using System.Data.SqlClient;
 using System.Dynamic;
 using System.Threading.Tasks;
 
 public class Startup
 {
-    private string _ConnectionString;
-
     public async Task<object> Invoke(IDictionary<string, object> parameters)
     {
         //Convert the input parameters to a useable object.
         ParameterCollection pcol = new ParameterCollection(parameters);
 
-        _ConnectionString = pcol.ConnectionString;
-
-        //Work out which query type to execute.
-        switch (pcol.QueryType)
+        using (DbConnection connection = CreateConnection(pcol.ConnectionString, pcol.ConnectionType))
         {
-            case QueryTypes.query:
-                return await ExecuteQuery(pcol.Query, pcol.Parameters);
-            case QueryTypes.scalar:
-                return await ExecuteScalar(pcol.Query, pcol.Parameters);
-            case QueryTypes.command:
-                return await ExecuteNonQuery(pcol.Query, pcol.Parameters);
-            default:
-                throw new InvalidOperationException("Unsupported type of SQL command type. Only query and command are supported.");
-        }
-    }
-
-    private async Task<object> ExecuteQuery(string query, object[] parameters)
-    {
-        OleDbConnection connection = null;
-
-        try
-        {
-            using (connection = new OleDbConnection(_ConnectionString))
+            try
             {
                 await connection.OpenAsync();
 
-                using (var command = new OleDbCommand(query, connection))
+                //Work out which query type to execute.
+                switch (pcol.QueryType)
                 {
-                    List<object> results = new List<object>();
-
-                    AddCommandParameters(command, parameters);
-
-                    using (OleDbDataReader reader = command.ExecuteReader())
-                    {
-                        do
-                        {
-                            results.Add(await ParseReaderRow(reader));
-                        }
-                        while (await reader.NextResultAsync());
-
-                        return results;
-                    }
+                    case QueryTypes.query:
+                        return await ExecuteQuery(connection, pcol.Query, pcol.Parameters);
+                    case QueryTypes.scalar:
+                        return await ExecuteScalar(connection, pcol.Query, pcol.Parameters);
+                    case QueryTypes.command:
+                        return await ExecuteNonQuery(connection, pcol.Query, pcol.Parameters);
+                    default:
+                        throw new InvalidOperationException("Unsupported type of SQL command type. Only query and command are supported.");
                 }
             }
-        }
-        finally
-        {
-            if (connection != null)
-                connection.Close();
-        }
-    }
-
-    private async Task<object> ExecuteScalar(string query, object[] parameters)
-    {
-        OleDbConnection connection = null;
-
-        try
-        {
-            using (connection = new OleDbConnection(_ConnectionString))
+            finally
             {
-                await connection.OpenAsync();
-
-                using (var command = new OleDbCommand(query, connection))
-                {
-                    AddCommandParameters(command, parameters);
-
-                    return await command.ExecuteScalarAsync();
-                }
-            }
-        }
-        finally
-        {
-            if (connection != null)
                 connection.Close();
+            }
         }
     }
 
-    private async Task<object> ExecuteNonQuery(string query, object[] parameters)
+    private DbConnection CreateConnection(string connectionString, ConnectionTypes type)
     {
-        OleDbConnection connection = null;
-
-        try
+        switch (type)
         {
-            using (connection = new OleDbConnection(_ConnectionString))
-            {
-                await connection.OpenAsync();
-
-                using (var command = new OleDbCommand(query, connection))
-                {
-                    AddCommandParameters(command, parameters);
-
-                    return await command.ExecuteNonQueryAsync();
-                }
-            }
+            case ConnectionTypes.oledb:
+                return new OleDbConnection(connectionString);
+            case ConnectionTypes.odbc:
+                return new OdbcConnection(connectionString);
+            case ConnectionTypes.sql:
+                return new SqlConnection(connectionString);
         }
-        finally
+
+        throw new NotImplementedException();
+    }
+
+    private async Task<object> ExecuteQuery(DbConnection connection, string query, object[] parameters)
+    {
+        using (var command = connection.CreateCommand())
         {
-            if (connection != null)
-                connection.Close();
+            command.CommandText = query;
+
+            AddCommandParameters(command, parameters);
+
+            using (DbDataReader reader = command.ExecuteReader())
+            {
+                List<object> results = new List<object>();
+
+                do
+                {
+                    results.Add(await ParseReaderRow(reader));
+                }
+                while (await reader.NextResultAsync());
+
+                return results;
+            }
         }
     }
 
-    private async Task<List<object>> ParseReaderRow(OleDbDataReader reader)
+    private async Task<object> ExecuteScalar(DbConnection connection, string query, object[] parameters)
+    {
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = query;
+
+            AddCommandParameters(command, parameters);
+
+            return await command.ExecuteScalarAsync();
+        }
+    }
+
+    private async Task<object> ExecuteNonQuery(DbConnection connection, string query, object[] parameters)
+    {
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = query;
+
+            AddCommandParameters(command, parameters);
+
+            return await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    private async Task<List<object>> ParseReaderRow(DbDataReader reader)
     {
         List<object> rows = new List<object>();
         IDataRecord row = reader;
@@ -152,14 +139,18 @@ public class Startup
         return rows;
     }
 
-    private void AddCommandParameters(OleDbCommand command, object[] parameters)
+    private void AddCommandParameters(DbCommand command, object[] parameters)
     {
         //Generate names for each parameter and add them to the parameter collection.
         for (int i = 0; i < parameters.Length; i++)
         {
             string name = string.Format("@p{0}", i + 1);
 
-            command.Parameters.Add(new OleDbParameter(name, parameters[i]));
+            DbParameter param = command.CreateParameter();
+            param.ParameterName = name;
+            param.Value = parameters[i];
+
+            command.Parameters.Add(param);
         }
     }
 }
@@ -171,11 +162,19 @@ public enum QueryTypes
     command
 }
 
+public enum ConnectionTypes
+{
+    oledb,
+    odbc,
+    sql
+}
+
 public class ParameterCollection
 {
     private IDictionary<string, object> _Raw;
 
     public string ConnectionString { get; private set; }
+    public ConnectionTypes ConnectionType { get; private set; }
     public QueryTypes QueryType { get; private set; }
     public string Query { get; private set; }
     public object[] Parameters { get; private set; }
@@ -202,6 +201,16 @@ public class ParameterCollection
 
         if (string.IsNullOrEmpty(Query))
             throw new ArgumentNullException("query");
+
+        //Extract the provider type (optional)
+        object connectionType = null;
+
+        _Raw.TryGetValue("connection", out connectionType);
+
+        if (connectionType == null)
+            connectionType = "oledb";
+
+        ConnectionType = (ConnectionTypes)Enum.Parse(typeof(ConnectionTypes), connectionType.ToString().ToLower());
 
         //Extract and command type (optional)
         object commandType = null;
