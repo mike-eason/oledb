@@ -64,17 +64,18 @@ Parameters are also supported and use positional parameters that are marked with
 
 ```js
 let command = `
-    select * from account 
-    where
+    update account
+    set
         firstname = ?
-        and age = ?
+    where
+        id = ?
 `;
 
 let parameters = [ 'Bob', 69 ];
 
-db.query(command, parameters)
-.then(function(results) {
-    console.log(results[0]);
+db.execute(command, parameters)
+.then(function(rowsAffected) {
+    console.log(rowsAffected);
 },
 function(error) {
     console.error(error);
