@@ -148,7 +148,11 @@ public class Startup
 
             DbParameter param = command.CreateParameter();
             param.ParameterName = name;
-            param.Value = parameters[i];
+            
+            if (param.Value == null)
+                param.Value = DBNull.Value;
+            else
+                param.Value = parameters[i];
 
             command.Parameters.Add(param);
         }
