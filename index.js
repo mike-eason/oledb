@@ -3,7 +3,7 @@ const data = edge.func(__dirname + '/Data.cs');
 
 module.exports = function(constring, contype) {
     if (constring == null || constring.trim() === '')
-        throw 'constring must not be null or empty';
+        throw new Error('constring must not be null or empty');
     if (contype == null || contype.trim() === '')
         contype = 'oledb';
 
@@ -11,7 +11,7 @@ module.exports = function(constring, contype) {
     let connectionType = contype;
 
     function executePromise(command, type, params) {
-        return new Promise(function(resolve, reject) {
+        return new Promise((resolve, reject) => {
             let options = {
                 constring: connectionString,
                 connection: connectionType,

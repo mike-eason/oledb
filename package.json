@@ -4,12 +4,15 @@
   "description": "Uses Edge.js to connect to an OLE Database.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tap test.js"
   },
   "author": "Mike Eason",
   "license": "MIT",
   "dependencies": {
     "edge": "^6.5.1"
+  },
+  "devDependencies": {
+    "tap": "^10.1.1"
   },
   "repository": {
     "type": "git",
