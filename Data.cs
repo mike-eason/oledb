@@ -34,7 +34,7 @@ public class Startup
                     case QueryTypes.command:
                         return await ExecuteNonQuery(connection, pcol.Query, pcol.Parameters);
                     default:
-                        throw new InvalidOperationException("Unsupported type of SQL command type. Only query and command are supported.");
+                        throw new InvalidOperationException("Unsupported type of SQL command. Only 'query', 'scalar' and 'command' are supported.");
                 }
             }
             finally

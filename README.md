@@ -30,6 +30,8 @@ function(error) {
 npm install oledb --save
 ```
 
+This module is a proxy that uses **ADO.NET** to call .NET code and therefore requires the **.NET Framework** to be installed.
+
 ## Options
 The initializer can take up to two parameters:
 
