@@ -1,10 +1,10 @@
 # oledb.js
 
-[![npm version](https://img.shields.io/badge/npm-v1.3.0-blue.svg)](https://www.npmjs.com/package/oledb)
+[![npm version](https://img.shields.io/badge/npm-v1.4.0-blue.svg)](https://www.npmjs.com/package/oledb)
 [![license](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![tips](https://img.shields.io/badge/tips-bitcoin-brightgreen.svg)](https://www.coinbase.com/blahyourhamster)
 
-A small **promise based** module which uses [Edge](https://github.com/tjanczuk/edge) to connect and execute queries for an 
+A small **promise based** module which uses [Edge](https://github.com/tjanczuk/edge) to connect and execute queries for a 
 [OLE DB](https://en.wikipedia.org/wiki/OLE_DB), [ODBC](https://en.wikipedia.org/wiki/Open_Database_Connectivity) or [SQL](https://en.wikipedia.org/wiki/SQL) database.
 
 ## Example
@@ -12,16 +12,16 @@ A small **promise based** module which uses [Edge](https://github.com/tjanczuk/e
 const connectionString = 'provider=vfpoledb;data source=C:/MyDatabase.dbc';
 
 const oledb = require('oledb');
-const db = oledb(connectionString);
+const db = oledb.oledbConnection(connectionString);
 
 let command = 'select * from account';
 
 db.query(command)
-.then(function(results) {
+.then(results => {
     console.log(results[0]);
 },
-function(error) {
-    console.error(error);
+err => {
+    console.error(err);
 });
 ```
 
@@ -33,25 +33,25 @@ npm install oledb --save
 This module is a proxy that uses **ADO.NET** to call .NET code and therefore requires the **.NET Framework** to be installed.
 
 ## Options
-The initializer can take up to two parameters:
+The module exposes three functions to initialize database connections:
 
-- `oledb(connectionString)` - Initializes a connection and assumes you are using an **OLE DB** connection.
-- `oledb(connectionString, connectionType)` - Initializes a connection to a database where `connectionType` is either `oledb`, `odbc` or `sql`.
+- `oledb.oledbConnection(connectionString)` - Initializes a connection to an **OLE DB** database.
+- `oledb.odbcConnection(connectionString)` - Initializes a connection to an **ODBC** database.
+- `oledb.sqlConnection(connectionString)` - Initializes a connection to an **SQL** database.
 
 Here is an example:
 
 ```js
 const connectionString = 'Server=myServerAddress;Database=myDataBase;Trusted_Connection=True;';
-const connectionType = 'sql';
 
 const oledb = require('oledb');
-const db = oledb(connectionString, connectionType);
+const db = oledb.oledbConnection(connectionString);
 
 ...
 ```
 
 ## Promises
-There are 3 available promises exposed by the module:
+There are 3 available promises that can be used to send commands and queries to a database connection:
 
 - `.query(command, parameters)` - Executes a query and returns the result set returned by the query as an `Array`.
 - `.execute(command, parameters)` - Executes a query command and returns the number of rows affected.
@@ -59,10 +59,10 @@ There are 3 available promises exposed by the module:
 
 Where `command` is the query string and `parameters` is an array of parameter values.
 
-*Please note that `parameters` are **optional**.*
+*Note: The `parameters` argument is **optional**.*
 
 ## Query Parameters
-Parameters are also supported and use positional parameters that are marked with a question mark (?) instead of named parameters. Here is an example:
+Parameters are also supported and use positional parameters that are marked with a question mark (?). Here is an example:
 
 ```js
 let command = `
@@ -76,11 +76,11 @@ let command = `
 let parameters = [ 'Bob', 69 ];
 
 db.execute(command, parameters)
-.then(function(rowsAffected) {
+.then(rowsAffected => {
     console.log(rowsAffected);
 },
-function(error) {
-    console.error(error);
+err => {
+    console.error(err);
 });
 ```
 
@@ -94,12 +94,12 @@ let command = `
 `;
 
 db.query(command)
-.then(function(results) {
+.then(results => {
     console.log(results[0]); //1st data set
     console.log(results[1]); //2nd data set
 },
-function(error) {
-    console.error(error);
+err => {
+    console.error(err);
 });
 ```
 
