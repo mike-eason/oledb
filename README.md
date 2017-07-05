@@ -1,6 +1,6 @@
 # oledb.js
 
-[![npm version](https://img.shields.io/badge/npm-v1.4.2-blue.svg)](https://www.npmjs.com/package/oledb)
+[![npm version](https://img.shields.io/badge/npm-v1.4.3-blue.svg)](https://www.npmjs.com/package/oledb)
 [![license](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![tips](https://img.shields.io/badge/tips-bitcoin-brightgreen.svg)](https://www.coinbase.com/blahyourhamster)
 
@@ -56,7 +56,7 @@ There are 3 available promises that can be used to send commands and queries to 
 - `.query(command, [parameters])` - Executes a query and returns the result set returned by the query as an `Array`.
 - `.execute(command, [parameters])` - Executes a query command and returns the **number of rows affected**.
 - `.scalar(command, [parameters])` - Executes a query and returns the first column of the first row in the result set returned by the query. All other columns and rows are ignored.
-- `.procedure(command, [parameters], [returns])` - Excutes a stored procedure and returns an integer result, otherwise the return parameter value if defined.
+- `.procedure(command, [parameters], [returns])` - Excutes a stored procedure and returns the result, otherwise the return parameter value if defined.
 
 Each parameter is described below:
 

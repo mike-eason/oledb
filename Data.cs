@@ -136,7 +136,7 @@ public class Startup
                 command.Parameters.Add(returnParam);
             }
 
-            int result = await command.ExecuteNonQueryAsync();
+            object result = await command.ExecuteScalarAsync();
 
             if (hasReturnParameter)
                 return command.Parameters[returns.ParameterName].Value;
