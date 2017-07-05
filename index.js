@@ -1,14 +1,15 @@
 const edge = require('edge');
 const data = edge.func(__dirname + '/Data.cs');
 
-function executePromise(constring, contype, command, type, params) {
+function executePromise(constring, contype, command, type, params, returns) {
     return new Promise((resolve, reject) => {
         let options = {
             constring: constring,
             connection: contype,
             query: command,
             type: type,
-            params: params || []
+            params: params || [],
+            returns: returns
         };
 
         data(options, (err, data) => {
@@ -42,6 +43,10 @@ class Connection {
     execute(command, params) {
         return executePromise(this.connectionString, this.connectionType, command, 'command', params);
     }
+
+    procedure(command, params, returns) {
+        return executePromise(this.connectionString, this.connectionType, command, 'procedure', params, returns);
+    }
 }
 
 module.exports = {
@@ -53,5 +58,5 @@ module.exports = {
     },
     sqlConnection(connectionString) {
         return new Connection(connectionString, 'sql');
-    },
+    }
 };

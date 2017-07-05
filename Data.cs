@@ -33,6 +33,8 @@ public class Startup
                         return await ExecuteScalar(connection, pcol.Query, pcol.Parameters);
                     case QueryTypes.command:
                         return await ExecuteNonQuery(connection, pcol.Query, pcol.Parameters);
+                    case QueryTypes.procedure:
+                        return await ExecuteProcedure(connection, pcol.Query, pcol.Parameters, pcol.ReturnParameter);
                     default:
                         throw new InvalidOperationException("Unsupported type of SQL command. Only 'query', 'scalar' and 'command' are supported.");
                 }
@@ -106,6 +108,43 @@ public class Startup
         }
     }
 
+    private async Task<object> ExecuteProcedure(DbConnection connection, string query, object[] parameters, ReturnParameter returns)
+    {
+        bool hasReturnParameter = returns != null;
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = query;
+            command.CommandType = CommandType.StoredProcedure;
+
+            AddCommandParameters(command, parameters);
+
+            if (hasReturnParameter)
+            {
+                DbParameter returnParam = command.CreateParameter();
+                returnParam.ParameterName = returns.ParameterName;
+                returnParam.Direction = ParameterDirection.ReturnValue;
+                returnParam.Value = returns.Value;
+
+                if (returns.Precision != null)
+                    returnParam.Precision = (byte)returns.Precision;
+                if (returns.Scale != null)
+                    returnParam.Scale = (byte)returns.Scale;
+                if (returns.Size != null)
+                    returnParam.Size = (byte)returns.Size;
+
+                command.Parameters.Add(returnParam);
+            }
+
+            int result = await command.ExecuteNonQueryAsync();
+
+            if (hasReturnParameter)
+                return command.Parameters[returns.ParameterName].Value;
+            else
+                return result;
+        }
+    }
+
     private async Task<List<object>> ParseReaderRow(DbDataReader reader)
     {
         List<object> rows = new List<object>();
@@ -148,7 +187,7 @@ public class Startup
 
             DbParameter param = command.CreateParameter();
             param.ParameterName = name;
-            
+
             if (parameters[i] == null)
                 param.Value = DBNull.Value;
             else
@@ -163,7 +202,8 @@ public enum QueryTypes
 {
     query,
     scalar,
-    command
+    command,
+    procedure
 }
 
 public enum ConnectionTypes
@@ -182,6 +222,7 @@ public class ParameterCollection
     public QueryTypes QueryType { get; private set; }
     public string Query { get; private set; }
     public object[] Parameters { get; private set; }
+    public ReturnParameter ReturnParameter { get; private set; }
 
     public ParameterCollection(IDictionary<string, object> parameters)
     {
@@ -197,16 +238,16 @@ public class ParameterCollection
         //Extract the connection string.
         ConnectionString = _Raw["constring"].ToString();
 
-        if (string.IsNullOrEmpty(ConnectionString))
+        if (string.IsNullOrWhiteSpace(ConnectionString))
             throw new ArgumentNullException("constring");
 
         //Extract the query
         Query = _Raw["query"].ToString();
 
-        if (string.IsNullOrEmpty(Query))
+        if (string.IsNullOrWhiteSpace(Query))
             throw new ArgumentNullException("query");
 
-        //Extract the provider type (optional)
+        //Extract the connection type (optional)
         object connectionType = null;
 
         _Raw.TryGetValue("connection", out connectionType);
@@ -232,8 +273,46 @@ public class ParameterCollection
         _Raw.TryGetValue("params", out parameters);
 
         if (parameters == null)
-            Parameters = new object[0];
+            parameters = new object[0];
 
         Parameters = (object[])parameters;
+
+        //Extract the return parameters (optional)
+        dynamic returnParameter = null;
+
+        _Raw.TryGetValue("returns", out returnParameter);
+
+        if (returnParameter != null)
+        {
+            ReturnParameter = new ReturnParameter()
+            {
+                Name = returnParameter.name
+            };
+
+            try { ReturnParameter.Precision = (byte)returnParameter.precision; } catch { }
+            try { ReturnParameter.Scale = (byte)returnParameter.scale; } catch { }
+            try { ReturnParameter.Size = (byte)returnParameter.size; } catch { }
+            try { ReturnParameter.Value = returnParameter.value; } catch { }
+        }
     }
+}
+
+public class ReturnParameter
+{
+    public string Name { get; set; }
+
+    public string ParameterName
+    {
+        get
+        {
+            string name = this.Name.Replace("@", "");
+
+            return "@" + name;
+        }
+    }
+
+    public byte? Precision { get; set; }
+    public byte? Scale { get; set; }
+    public byte? Size { get; set; }
+    public object Value { get; set; }
 }
