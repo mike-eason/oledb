@@ -1,7 +1,23 @@
 const tap = require('tap').test;
-const oledb = require('./index');
+const mock = require('mock-require');
 
 const connectionString = 'mydatabase.dbc';
+
+/*
+    Mock edge.js so we can check the options passed in.
+*/
+mock('edge', {
+    func(filePath) {
+        return (options, callback) => {
+            if (options.constring != connectionString)
+                return callback('Connection strings do not match.');
+
+            return callback(null, []);
+        };
+    }
+});
+
+const oledb = require('./index');
 
 tap('fails if oledb connection string is empty.', (t) => {
     t.throws(
@@ -478,6 +494,48 @@ tap('sql execute fails if command is undefined', (t) => {
     let db = oledb.sqlConnection(connectionString);
 
     db.execute()
+    .then(result => {
+        t.fail('should have not been a successful command.');
+    })
+    .catch(err => {
+        t.end();
+    });
+});
+
+tap('converts non-array params to array type', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let command = 'select * from test where id = ?;';
+    let parameters = 123;
+
+    db.execute(command, parameters)
+    .then(result => {
+        t.end();
+    })
+    .catch(err => {
+        t.fail(err);
+    });
+});
+
+tap('does not screw up params that is an array type', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let command = 'select * from test where id = ?;';
+    let parameters = [123];
+
+    db.execute(command, parameters)
+    .then(result => {
+        t.end();
+    })
+    .catch(err => {
+        t.fail(err);
+    });
+});
+
+tap('fails if params contains sub-arrays.', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let command = 'select * from test where id = ?;';
+    let parameters = [123, [456]];
+
+    db.execute(command, parameters)
     .then(result => {
         t.fail('should have not been a successful command.');
     })

@@ -12,6 +12,7 @@
     "edge": "^6.5.1"
   },
   "devDependencies": {
+    "mock-require": "^2.0.2",
     "tap": "^10.1.1"
   },
   "repository": {

@@ -2,6 +2,22 @@ const edge = require('edge');
 const data = edge.func(__dirname + '/Data.cs');
 
 function executePromise(constring, contype, command, type, params, returns) {
+    if (command == null || command.length === 0)
+        return Promise.reject('Command string cannot be null or empty.');
+
+    if (params != null && !Array.isArray(params))
+        params = [params];
+
+    if (params) {
+        if (!Array.isArray(params))
+            return Promise.reject('Params must be an array type.');
+
+        for(let i = 0; i < params.length; i++) {
+            if (Array.isArray(params[i]))
+                return Promise.reject('Params cannot contain sub-arrays.');
+        }
+    }
+
     return new Promise((resolve, reject) => {
         let options = {
             constring: constring,
