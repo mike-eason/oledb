@@ -1,6 +1,6 @@
 # oledb.js
 
-[![npm version](https://img.shields.io/badge/npm-v1.4.4-blue.svg)](https://www.npmjs.com/package/oledb)
+[![npm version](https://img.shields.io/badge/npm-v1.5.0-blue.svg)](https://www.npmjs.com/package/oledb)
 [![license](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![tips](https://img.shields.io/badge/tips-bitcoin-brightgreen.svg)](https://www.coinbase.com/blahyourhamster)
 
@@ -50,19 +50,23 @@ const db = oledb.oledbConnection(connectionString);
 ...
 ```
 
+---
+
 ## Promises
-There are 3 available promises that can be used to send commands and queries to a database connection:
+There are a number available promises that can be used to send commands and queries to a database connection:
 
 - `.query(command, [parameters])` - Executes a query and returns the result set returned by the query as an `Array`.
 - `.execute(command, [parameters])` - Executes a query command and returns the **number of rows affected**.
 - `.scalar(command, [parameters])` - Executes a query and returns the first column of the first row in the result set returned by the query. All other columns and rows are ignored.
 - `.procedure(command, [parameters], [returns])` - Excutes a stored procedure and returns the result, otherwise the return parameter value if defined.
+- `.transaction(commands)` - Excutes an array of queries in a single transaction and returns the result of each.
 
 Each parameter is described below:
 
 - `command` - The string query command to be executed.
 - `parameters` - An **Array** of parameter values. This is an **optional** parameter.
 - `returns` - A return value object, see the *Stored Procedure* section below. This is an **optional** parameter.
+- `commands` - A parameter used for transactions, see the *Transactions* section below.
 
 ## Query Parameters
 Parameters are also supported and use positional parameters that are marked with a question mark (?). Here is an example:
@@ -86,6 +90,27 @@ err => {
     console.error(err);
 });
 ```
+
+## Multiple Data Sets
+The `.query` promise has support for multiple data sets that can be returned in a single query. Here is an example:
+
+```js
+let command = `
+    select * from account;
+    select * from address;
+`;
+
+db.query(command)
+.then(results => {
+    console.log(results[0]); //1st data set
+    console.log(results[1]); //2nd data set
+},
+err => {
+    console.error(err);
+});
+```
+
+---
 
 ## Stored Procedures
 Stored procedures can be executed using the `.procedure` function with optional parameters and return value. Here is an example:
@@ -137,23 +162,46 @@ err => {
 });
 ```
 
-## Multiple Data Sets
-The `.query` promise has support for multiple data sets that can be returned in a single query. Here is an example:
+---
+
+## Transactions
+The `.transaction` promise will execute multiple commands in a **single** transaction, this is useful for if you want to insert records across different tables
+and need to ensure that they all are inserted successfully, or not at all. **All** query types are supported, including `procedure`. Here is an example:
 
 ```js
-let command = `
-    select * from account;
-    select * from address;
-`;
+let commands = [
+    {
+        query: 'insert into account (name) values (?)',
+        params: [ 'Bob' ]
+    },
+    {
+        query: 'select * from account where name = ?',
+        type: oledb.COMMAND_TYPES.QUERY,
+        params: [ 'Bob' ]
+    }
+];
 
-db.query(command)
+db.transaction(commands)
 .then(results => {
-    console.log(results[0]); //1st data set
-    console.log(results[1]); //2nd data set
+    console.log(results[0].result); //Insert query result.
+    console.log(results[1][0].result); //Select query result. (First result set)
 },
 err => {
-    console.error(err);
+    console.log(err);
 });
+```
+
+*Note: The result field will contain an array of results if using a `query` command as multiple query results are supported by each executed query. See Multiple Data Sets above.*
+
+All commands must follow the following structure:
+
+```js
+{
+    query: string,      //The query string - Required
+    params: Array,      //The query parameters - Optional
+    type: string,       //The query type, use one of the oledb.COMMAND_TYPES enumerations. - Optional - Defaults to 'command'
+    returns: Object     //The return parameter if applicable (see Stored Procedures). - Optional
+}
 ```
 
 ## License

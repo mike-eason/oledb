@@ -15,7 +15,6 @@ public class Startup
 {
     public async Task<object> Invoke(IDictionary<string, object> parameters)
     {
-        //Convert the input parameters to a useable object.
         ParameterCollection pcol = new ParameterCollection(parameters);
 
         using (DbConnection connection = CreateConnection(pcol.ConnectionString, pcol.ConnectionType))
@@ -24,19 +23,32 @@ public class Startup
             {
                 await connection.OpenAsync();
 
-                //Work out which query type to execute.
-                switch (pcol.QueryType)
+                using (var command = connection.CreateCommand())
                 {
-                    case QueryTypes.query:
-                        return await ExecuteQuery(connection, pcol.Query, pcol.Parameters);
-                    case QueryTypes.scalar:
-                        return await ExecuteScalar(connection, pcol.Query, pcol.Parameters);
-                    case QueryTypes.command:
-                        return await ExecuteNonQuery(connection, pcol.Query, pcol.Parameters);
-                    case QueryTypes.procedure:
-                        return await ExecuteProcedure(connection, pcol.Query, pcol.Parameters, pcol.ReturnParameter);
-                    default:
-                        throw new InvalidOperationException("Unsupported type of SQL command. Only 'query', 'scalar' and 'command' are supported.");
+                    //If there is only one command then execute it on it's own.
+                    //Otherwise run all commands as a single transaction.
+                    if (pcol.Commands.Count == 1)
+                    {
+                        var com = pcol.Commands[0];
+
+                        switch (com.type)
+                        {
+                            case QueryTypes.query:
+                                return await ExecuteQuery(command, com);
+                            case QueryTypes.scalar:
+                                return await ExecuteScalar(command, com);
+                            case QueryTypes.command:
+                                return await ExecuteNonQuery(command, com);
+                            case QueryTypes.procedure:
+                                return await ExecuteProcedure(command, com);
+                            default:
+                                throw new NotSupportedException("Unsupported type of database command. Only 'query', 'scalar', 'command' and 'procedure' are supported.");
+                        }
+                    }
+                    else
+                    {
+                        return await ExecuteTransaction(connection, command, pcol.Commands);
+                    }
                 }
             }
             finally
@@ -61,88 +73,126 @@ public class Startup
         throw new NotImplementedException();
     }
 
-    private async Task<object> ExecuteQuery(DbConnection connection, string query, object[] parameters)
+    private async Task<object> ExecuteQuery(DbCommand command, Command com)
     {
-        using (var command = connection.CreateCommand())
+        command.CommandText = com.query;
+
+        AddCommandParameters(command, com.@params);
+
+        using (DbDataReader reader = command.ExecuteReader())
         {
-            command.CommandText = query;
+            List<object> results = new List<object>();
 
-            AddCommandParameters(command, parameters);
-
-            using (DbDataReader reader = command.ExecuteReader())
+            do
             {
-                List<object> results = new List<object>();
+                results.Add(await ParseReaderRow(reader));
+            }
+            while (await reader.NextResultAsync());
 
-                do
+            return results;
+        }
+    }
+
+    private async Task<object> ExecuteScalar(DbCommand command, Command com)
+    {
+        command.CommandText = com.query;
+
+        AddCommandParameters(command, com.@params);
+
+        return await command.ExecuteScalarAsync();
+    }
+
+    private async Task<object> ExecuteNonQuery(DbCommand command, Command com)
+    {
+        command.CommandText = com.query;
+
+        AddCommandParameters(command, com.@params);
+
+        return await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<object> ExecuteProcedure(DbCommand command, Command com)
+    {
+        bool hasReturnParameter = com.returns != null;
+
+        command.CommandText = com.query;
+        command.CommandType = CommandType.StoredProcedure;
+
+        AddCommandParameters(command, com.@params);
+
+        if (hasReturnParameter)
+        {
+            DbParameter returnParam = command.CreateParameter();
+            returnParam.ParameterName = com.returns.parameterName;
+            returnParam.Direction = ParameterDirection.ReturnValue;
+            returnParam.Value = com.returns.value;
+
+            if (com.returns.precision != null)
+                returnParam.Precision = (byte)com.returns.precision;
+            if (com.returns.scale != null)
+                returnParam.Scale = (byte)com.returns.scale;
+            if (com.returns.size != null)
+                returnParam.Size = (byte)com.returns.size;
+
+            command.Parameters.Add(returnParam);
+        }
+
+        object result = await command.ExecuteScalarAsync();
+
+        if (hasReturnParameter)
+            return command.Parameters[com.returns.parameterName].Value;
+        else
+            return result;
+    }
+
+    private async Task<object> ExecuteTransaction(DbConnection connection, DbCommand command, List<Command> commands)
+    {
+        DbTransaction transaction = null;
+
+        try
+        {
+            transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            command.Transaction = transaction;
+
+            foreach (Command com in commands)
+            {
+                switch (com.type)
                 {
-                    results.Add(await ParseReaderRow(reader));
+                    case QueryTypes.command:
+                        com.result = await ExecuteNonQuery(command, com);
+                        break;
+                    case QueryTypes.query:
+                        com.result = await ExecuteQuery(command, com);
+                        break;
+                    case QueryTypes.scalar:
+                        com.result = await ExecuteScalar(command, com);
+                        break;
+                    case QueryTypes.procedure:
+                        com.result = await ExecuteProcedure(command, com);
+                        break;
+                    default:
+                        throw new NotSupportedException("Unsupported type of database command. Only 'query', 'scalar', 'command' and 'procedure' are supported.");
                 }
-                while (await reader.NextResultAsync());
-
-                return results;
             }
+
+            transaction.Commit();
         }
-    }
-
-    private async Task<object> ExecuteScalar(DbConnection connection, string query, object[] parameters)
-    {
-        using (var command = connection.CreateCommand())
+        catch
         {
-            command.CommandText = query;
-
-            AddCommandParameters(command, parameters);
-
-            return await command.ExecuteScalarAsync();
-        }
-    }
-
-    private async Task<object> ExecuteNonQuery(DbConnection connection, string query, object[] parameters)
-    {
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = query;
-
-            AddCommandParameters(command, parameters);
-
-            return await command.ExecuteNonQueryAsync();
-        }
-    }
-
-    private async Task<object> ExecuteProcedure(DbConnection connection, string query, object[] parameters, ReturnParameter returns)
-    {
-        bool hasReturnParameter = returns != null;
-
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = query;
-            command.CommandType = CommandType.StoredProcedure;
-
-            AddCommandParameters(command, parameters);
-
-            if (hasReturnParameter)
+            try
             {
-                DbParameter returnParam = command.CreateParameter();
-                returnParam.ParameterName = returns.ParameterName;
-                returnParam.Direction = ParameterDirection.ReturnValue;
-                returnParam.Value = returns.Value;
-
-                if (returns.Precision != null)
-                    returnParam.Precision = (byte)returns.Precision;
-                if (returns.Scale != null)
-                    returnParam.Scale = (byte)returns.Scale;
-                if (returns.Size != null)
-                    returnParam.Size = (byte)returns.Size;
-
-                command.Parameters.Add(returnParam);
+                transaction.Rollback();
+            }
+            catch
+            {
+                //Do nothing here; transaction is not active.
             }
 
-            object result = await command.ExecuteScalarAsync();
-
-            if (hasReturnParameter)
-                return command.Parameters[returns.ParameterName].Value;
-            else
-                return result;
+            throw;
         }
+
+        return commands;
     }
 
     private async Task<List<object>> ParseReaderRow(DbDataReader reader)
@@ -180,7 +230,8 @@ public class Startup
 
     private void AddCommandParameters(DbCommand command, object[] parameters)
     {
-        //Generate names for each parameter and add them to the parameter collection.
+        command.Parameters.Clear();
+
         for (int i = 0; i < parameters.Length; i++)
         {
             string name = string.Format("@p{0}", i + 1);
@@ -219,15 +270,15 @@ public class ParameterCollection
 
     public string ConnectionString { get; private set; }
     public ConnectionTypes ConnectionType { get; private set; }
-    public QueryTypes QueryType { get; private set; }
-    public string Query { get; private set; }
-    public object[] Parameters { get; private set; }
-    public ReturnParameter ReturnParameter { get; private set; }
+
+    public List<Command> Commands { get; private set; }
 
     public ParameterCollection(IDictionary<string, object> parameters)
     {
         if (parameters == null)
             throw new ArgumentNullException("parameters");
+
+        Commands = new List<Command>();
 
         _Raw = parameters;
         ParseRawParameters();
@@ -241,12 +292,6 @@ public class ParameterCollection
         if (string.IsNullOrWhiteSpace(ConnectionString))
             throw new ArgumentNullException("constring");
 
-        //Extract the query
-        Query = _Raw["query"].ToString();
-
-        if (string.IsNullOrWhiteSpace(Query))
-            throw new ArgumentNullException("query");
-
         //Extract the connection type (optional)
         object connectionType = null;
 
@@ -257,62 +302,87 @@ public class ParameterCollection
 
         ConnectionType = (ConnectionTypes)Enum.Parse(typeof(ConnectionTypes), connectionType.ToString().ToLower());
 
-        //Extract and command type (optional)
-        object commandType = null;
+        //Extract the commands array.
+        dynamic commands = null;
 
-        _Raw.TryGetValue("type", out commandType);
+        _Raw.TryGetValue("commands", out commands);
 
-        if (commandType == null)
-            commandType = "query";
+        if (commands == null)
+            throw new ArgumentException("The commands field is required.");
 
-        QueryType = (QueryTypes)Enum.Parse(typeof(QueryTypes), commandType.ToString().ToLower());
-
-        //Extract the parameters (optional)
-        object parameters = null;
-
-        _Raw.TryGetValue("params", out parameters);
-
-        if (parameters == null)
-            parameters = new object[0];
-
-        Parameters = (object[])parameters;
-
-        //Extract the return parameters (optional)
-        dynamic returnParameter = null;
-
-        _Raw.TryGetValue("returns", out returnParameter);
-
-        if (returnParameter != null)
+        for (int i = 0; i < commands.Length; i++)
         {
-            ReturnParameter = new ReturnParameter()
+            dynamic com = commands[i];
+
+            if (!IsPropertyExist(com, "query"))
+                throw new ArgumentException("The query field is required on transaction object.");
+
+            Command newCom = new Command()
             {
-                Name = returnParameter.name
+                query = com.query
             };
 
-            try { ReturnParameter.Precision = (byte)returnParameter.precision; } catch { }
-            try { ReturnParameter.Scale = (byte)returnParameter.scale; } catch { }
-            try { ReturnParameter.Size = (byte)returnParameter.size; } catch { }
-            try { ReturnParameter.Value = returnParameter.value; } catch { }
+            if (IsPropertyExist(com, "params"))
+                newCom.@params = com.@params;
+            else
+                newCom.@params = new object[] { };
+
+            if (IsPropertyExist(com, "type"))
+                newCom.type = (QueryTypes)Enum.Parse(typeof(QueryTypes), com.type.ToString().ToLower());
+            else
+                newCom.type = QueryTypes.command;
+
+            if (IsPropertyExist(com, "returns"))
+            {
+                newCom.returns = new ReturnParameter()
+                {
+                    name = com.returns.name
+                };
+
+                try { newCom.returns.precision = (byte)com.returns.precision; } catch { }
+                try { newCom.returns.scale = (byte)com.returns.scale; } catch { }
+                try { newCom.returns.size = (byte)com.returns.size; } catch { }
+                try { newCom.returns.value = com.returns.value; } catch { }
+            }
+
+            Commands.Add(newCom);
         }
+    }
+
+    private bool IsPropertyExist(dynamic settings, string name)
+    {
+        if (settings is ExpandoObject)
+            return ((IDictionary<string, object>)settings).ContainsKey(name);
+
+        return settings.GetType().GetProperty(name) != null;
     }
 }
 
 public class ReturnParameter
 {
-    public string Name { get; set; }
+    public string name { get; set; }
 
-    public string ParameterName
+    public string parameterName
     {
         get
         {
-            string name = this.Name.Replace("@", "");
+            string name = this.name.Replace("@", "");
 
             return "@" + name;
         }
     }
 
-    public byte? Precision { get; set; }
-    public byte? Scale { get; set; }
-    public byte? Size { get; set; }
-    public object Value { get; set; }
+    public byte? precision { get; set; }
+    public byte? scale { get; set; }
+    public byte? size { get; set; }
+    public object value { get; set; }
+}
+
+public class Command
+{
+    public string query { get; set; }
+    public object[] @params { get; set; }
+    public QueryTypes type { get; set; }
+    public ReturnParameter returns { get; set; }
+    public object result { get; set; }
 }

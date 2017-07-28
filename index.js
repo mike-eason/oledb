@@ -1,31 +1,53 @@
 const edge = require('edge');
 const data = edge.func(__dirname + '/Data.cs');
 
-function executePromise(constring, contype, command, type, params, returns) {
-    if (command == null || command.length === 0)
-        return Promise.reject('Command string cannot be null or empty.');
+const COMMAND_TYPES = {
+    QUERY: 'query',
+    SCALAR: 'scalar',
+    COMMAND: 'command',
+    PROCEDURE: 'procedure'
+};
 
-    if (params != null && !Array.isArray(params))
-        params = [params];
+const CONNECTION_TYPES = {
+    OLEDB: 'oledb',
+    SQL: 'sql',
+    ODBC: 'odbc'
+};
 
-    if (params) {
-        if (!Array.isArray(params))
-            return Promise.reject('Params must be an array type.');
+function executePromise(constring, contype, commands) {
+    if (!commands)
+        return Promise.reject('The commands argument is required.');
+    if (!Array.isArray(commands))
+        return Promise.reject('Commands argument must be an array type.');
+    if (commands.length === 0)
+        return Promise.reject('There must be more than one transaction to execute.');
 
-        for(let i = 0; i < params.length; i++) {
-            if (Array.isArray(params[i]))
-                return Promise.reject('Params cannot contain sub-arrays.');
+    for(let i = 0; i < commands.length; i++) {
+        let command = commands[i];
+
+        if (command.query.length === 0)
+            return Promise.reject('Command string cannot be null or empty.');
+        if (command.params != null && !Array.isArray(command.params))
+            command.params = [command.params];
+
+        if (command.params) {
+            if (!Array.isArray(command.params))
+                return Promise.reject('Params must be an array type.');
+
+            for(let i = 0; i < command.params.length; i++) {
+                if (Array.isArray(command.params[i]))
+                    return Promise.reject('Params cannot contain sub-arrays.');
+            }
         }
+        else
+            command.params = [];
     }
 
     return new Promise((resolve, reject) => {
         let options = {
             constring: constring,
             connection: contype,
-            query: command,
-            type: type,
-            params: params || [],
-            returns: returns
+            commands: commands
         };
 
         data(options, (err, data) => {
@@ -42,37 +64,68 @@ class Connection {
         if (constring == null || constring.trim() === '')
             throw new Error('constring must not be null or empty');
         if (contype == null || contype.trim() === '')
-            contype = 'oledb';
+            contype = CONNECTION_TYPES.OLEDB;
 
         this.connectionString = constring;
         this.connectionType = contype;
     }
 
     query(command, params) {
-        return executePromise(this.connectionString, this.connectionType, command, 'query', params);
+        return executePromise(this.connectionString, this.connectionType, [
+            {
+                query: command,
+                params: params,
+                type: COMMAND_TYPES.QUERY
+            }
+        ]);
     }
 
     scalar(command, params) {
-        return executePromise(this.connectionString, this.connectionType, command, 'scalar', params);
+        return executePromise(this.connectionString, this.connectionType, [
+            {
+                query: command,
+                params: params,
+                type: COMMAND_TYPES.SCALAR
+            }
+        ]);
     }
 
     execute(command, params) {
-        return executePromise(this.connectionString, this.connectionType, command, 'command', params);
+       return executePromise(this.connectionString, this.connectionType, [
+            {
+                query: command,
+                params: params,
+                type: COMMAND_TYPES.COMMAND
+            }
+        ]);
     }
 
     procedure(command, params, returns) {
-        return executePromise(this.connectionString, this.connectionType, command, 'procedure', params, returns);
+        return executePromise(this.connectionString, this.connectionType, [
+            {
+                query: command,
+                params: params,
+                type: COMMAND_TYPES.PROCEDURE,
+                returns: returns
+            }
+        ]);
+    }
+
+    transaction(commands) {
+        return executePromise(this.connectionString, this.connectionType, commands)
     }
 }
 
 module.exports = {
+    COMMAND_TYPES: COMMAND_TYPES,
+
     oledbConnection(connectionString) {
-        return new Connection(connectionString, 'oledb');
+        return new Connection(connectionString, CONNECTION_TYPES.OLEDB);
     },
     odbcConnection(connectionString) {
-        return new Connection(connectionString, 'odbc');
+        return new Connection(connectionString, CONNECTION_TYPES.ODBC);
     },
     sqlConnection(connectionString) {
-        return new Connection(connectionString, 'sql');
+        return new Connection(connectionString, CONNECTION_TYPES.SQL);
     }
 };
