@@ -30,7 +30,7 @@ The result will look like this:
 {
     query: 'select count(*) from account where name = @p1',
     type: 'query',
-    params:[
+    params: [
         {
             name: '@p1',
             value: 'Mike',
@@ -252,7 +252,7 @@ With **transactions**, you can use the special `'$prev'` parameter to inject the
 let commands = [
     //First query, executes a stored procedure and returns an account id.
     {
-        query: 'insert_account (@name)`,
+        query: 'insert_account (@name)',
         params: [ 
             {
                 name: '@name',
