@@ -11,6 +11,8 @@ mock('edge', {
         return (options, callback) => {
             if (options.constring != connectionString)
                 return callback('Connection strings do not match.');
+            if (options.commands == null || options.commands.length === 0)
+                return callback('Commands parameter must be an array of at least one command.');
 
             return callback(null, []);
         };
@@ -541,5 +543,49 @@ tap('fails if params contains sub-arrays.', (t) => {
     })
     .catch(err => {
         t.end();
+    });
+});
+
+tap('fails if transaction commands is an empty array', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let commands = [];
+
+    db.transaction(commands)
+    .then(result => {
+        t.fail('should have not been a successful command.');
+    })
+    .catch(err => {
+        t.end();
+    });
+});
+
+tap('fails if transaction commands is null', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let commands = null;
+
+    db.transaction(commands)
+    .then(result => {
+        t.fail('should have not been a successful command.');
+    })
+    .catch(err => {
+        t.end();
+    });
+});
+
+tap('succeeds if transaction commands has at least one valid command', (t) => {
+    let db = oledb.oledbConnection(connectionString);
+    let commands = [
+        {
+            query: 'select * from test',
+            params: []
+        }
+    ];
+
+    db.transaction(commands)
+    .then(result => {
+        t.end();
+    })
+    .catch(err => {
+        t.fail(err);
     });
 });

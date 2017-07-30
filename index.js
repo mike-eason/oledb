@@ -8,6 +8,13 @@ const COMMAND_TYPES = {
     PROCEDURE: 'procedure'
 };
 
+const PARAMETER_DIRECTIONS = {
+    INPUT: 1,
+    OUTPUT: 2,
+    INPUT_OUTPUT: 3,
+    RETURN_VALUE: 6
+};
+
 const CONNECTION_TYPES = {
     OLEDB: 'oledb',
     SQL: 'sql',
@@ -25,7 +32,7 @@ function executePromise(constring, contype, commands) {
     for(let i = 0; i < commands.length; i++) {
         let command = commands[i];
 
-        if (command.query.length === 0)
+        if (command.query == null || command.query.length === 0)
             return Promise.reject('Command string cannot be null or empty.');
         if (command.params != null && !Array.isArray(command.params))
             command.params = [command.params];
@@ -100,13 +107,12 @@ class Connection {
         ]);
     }
 
-    procedure(command, params, returns) {
+    procedure(command, params) {
         return executePromise(this.connectionString, this.connectionType, [
             {
                 query: command,
                 params: params,
-                type: COMMAND_TYPES.PROCEDURE,
-                returns: returns
+                type: COMMAND_TYPES.PROCEDURE
             }
         ]);
     }
@@ -118,6 +124,7 @@ class Connection {
 
 module.exports = {
     COMMAND_TYPES: COMMAND_TYPES,
+    PARAMETER_DIRECTIONS: PARAMETER_DIRECTIONS,
 
     oledbConnection(connectionString) {
         return new Connection(connectionString, CONNECTION_TYPES.OLEDB);
