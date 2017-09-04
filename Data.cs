@@ -17,7 +17,7 @@ public class Startup
     public async Task<object> Invoke(IDictionary<string, object> parameters)
     {
         JsParameterCollection pcol = new JsParameterCollection(parameters);
-        
+
         using (DbConnection connection = CreateConnection(pcol.ConnectionString, pcol.ConnectionType))
         {
             try
@@ -42,6 +42,8 @@ public class Startup
                                 return await ExecuteNonQuery(command, com);
                             case JsQueryTypes.procedure:
                                 return await ExecuteProcedure(command, com);
+                            case JsQueryTypes.procedureScalar:
+                                return await ExecuteProcedureScalar(command, com);
                             default:
                                 throw new NotSupportedException("Unsupported type of database command. Only 'query', 'scalar', 'command' and 'procedure' are supported.");
                         }
@@ -94,7 +96,7 @@ public class Startup
         }
 
         UpdateCommandParameters(dbCommand, jsCommand);
-        
+
         return jsCommand;
     }
 
@@ -107,7 +109,7 @@ public class Startup
         jsCommand.result = await dbCommand.ExecuteScalarAsync();
 
         UpdateCommandParameters(dbCommand, jsCommand);
-        
+
         return jsCommand;
     }
 
@@ -117,10 +119,10 @@ public class Startup
 
         AddCommandParameters(dbCommand, jsCommand, prev);
 
-        jsCommand.result =  await dbCommand.ExecuteNonQueryAsync();
-        
+        jsCommand.result = await dbCommand.ExecuteNonQueryAsync();
+
         UpdateCommandParameters(dbCommand, jsCommand);
-        
+
         return jsCommand;
     }
 
@@ -132,7 +134,21 @@ public class Startup
         AddCommandParameters(dbCommand, jsCommand, prev);
 
         jsCommand.result = await dbCommand.ExecuteNonQueryAsync();
-        
+
+        UpdateCommandParameters(dbCommand, jsCommand);
+
+        return jsCommand;
+    }
+
+    private async Task<object> ExecuteProcedureScalar(DbCommand dbCommand, JsCommand jsCommand, object prev = null)
+    {
+        dbCommand.CommandText = jsCommand.query;
+        dbCommand.CommandType = CommandType.StoredProcedure;
+
+        AddCommandParameters(dbCommand, jsCommand, prev);
+
+        jsCommand.result = await dbCommand.ExecuteScalarAsync();
+
         UpdateCommandParameters(dbCommand, jsCommand);
 
         return jsCommand;
@@ -165,6 +181,9 @@ public class Startup
                         break;
                     case JsQueryTypes.procedure:
                         await ExecuteProcedure(dbCommand, jsCommand, prevResult);
+                        break;
+                    case JsQueryTypes.procedureScalar:
+                        await ExecuteProcedureScalar(dbCommand, jsCommand, prevResult);
                         break;
                     default:
                         throw new NotSupportedException("Unsupported type of database command. Only 'query', 'scalar', 'command' and 'procedure' are supported.");
@@ -264,7 +283,7 @@ public class Startup
 
     private void UpdateCommandParameters(DbCommand dbCommand, JsCommand jsCommand)
     {
-        foreach(DbParameter param in dbCommand.Parameters)
+        foreach (DbParameter param in dbCommand.Parameters)
         {
             JsCommandParameter jparam = jsCommand.@params.FirstOrDefault(x => x.name == param.ParameterName);
 
@@ -281,7 +300,8 @@ public enum JsQueryTypes
     query,
     scalar,
     command,
-    procedure
+    procedure,
+    procedureScalar
 }
 
 public enum JsConnectionTypes
@@ -383,7 +403,7 @@ public class JsCommand
 
     internal object[] rawParameters
     {
-        get 
+        get
         {
             return _rawParameters;
         }
@@ -392,11 +412,11 @@ public class JsCommand
             _rawParameters = value;
 
             @params = new List<JsCommandParameter>();
-            
+
             //Go through each command parameter and build up the command parameter
             //array. Work out wether to use named parameters (@myParam, @myOtherParam) 
             //or index named parameters (@p1, @p2 ect).
-            for(int i = 0; i < _rawParameters.Length; i++)
+            for (int i = 0; i < _rawParameters.Length; i++)
             {
                 dynamic p = _rawParameters[i];
                 JsCommandParameter cp = new JsCommandParameter();
@@ -408,15 +428,12 @@ public class JsCommand
                     if (IsPropertyExist(p, "name"))
                         cp.name = p.name.ToString();
                     else
-                        cp.name = "@p" + (i + 1).ToString();
+                        cp.name = "p" + (i + 1).ToString();
 
                     if (IsPropertyExist(p, "value"))
                         cp.value = p.value;
                     else
                         cp.value = null;
-
-                    if (!cp.name.StartsWith("@"))
-                        cp.name = "@" + cp.name;
 
                     try { cp.direction = (int)p.direction; } catch { cp.direction = (int)ParameterDirection.Input; }
                     try { cp.isNullable = (bool)p.isNullable; } catch { cp.isNullable = true; }
@@ -424,9 +441,9 @@ public class JsCommand
                     try { cp.scale = (byte)p.scale; } catch { }
                     try { cp.size = (byte)p.size; } catch { }
                 }
-                else 
+                else
                 {
-                    cp.name = "@p" + (i + 1).ToString();
+                    cp.name = "p" + (i + 1).ToString();
                     cp.value = p;
                 }
 
@@ -449,7 +466,7 @@ public class JsCommandParameter
     public string name { get; set; }
     public object value { get; set; }
 
-    public int direction { get; set; } 
+    public int direction { get; set; }
     public bool isNullable { get; set; }
     public byte? precision { get; set; }
     public byte? scale { get; set; }

@@ -32,7 +32,7 @@ The result will look like this:
     type: 'query',
     params: [
         {
-            name: '@p1',
+            name: 'p1',
             value: 'Mike',
             direction: 0,
             isNullable: false,
@@ -72,7 +72,8 @@ There are a number available promises that can be used to send commands and quer
 - `.query(command, [parameters])` - Executes a query and returns an is the result set returned by the query as an `Array`.
 - `.execute(command, [parameters])` - Executes a query command and returns an is the the **number of rows affected**.
 - `.scalar(command, [parameters])` - Executes a query and returns an is the first column of the first row in the result set returned by the query. All other columns and rows are ignored.
-- `.procedure(command, [parameters])` - Excutes a stored procedure and returns the result.
+- `.procedure(command, [parameters])` - Excutes a stored procedure and returns the number of rows affected.
+- `.procedureScalar(command, [parameters])` - Excutes a stored procedure and returns the result.
 - `.transaction(commands)` - Excutes an array of commands in a single transaction and returns the result of each.
 
 Each parameter is described below:
@@ -255,11 +256,11 @@ let commands = [
         query: 'insert_account (@name)',
         params: [ 
             {
-                name: '@name',
+                name: 'name',
                 value: 'Bob'
             },
             {
-                name: '@accountId',
+                name: 'accountId',
                 direction: oledb.PARAMETER_DIRECTIONS.RETURN_VALUE
             }
         ],
@@ -271,7 +272,7 @@ let commands = [
         type: oledb.COMMAND_TYPES.QUERY,
         params: [
             {
-                name: '@accountId',
+                name: 'accountId',
                 value: '$prev'      //Note: This value must be a string.
             }
         ]

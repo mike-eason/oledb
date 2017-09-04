@@ -5,7 +5,8 @@ const COMMAND_TYPES = {
     QUERY: 'query',
     SCALAR: 'scalar',
     COMMAND: 'command',
-    PROCEDURE: 'procedure'
+    PROCEDURE: 'procedure',
+    PROCEDURE_SCALAR: 'procedureScalar'
 };
 
 const PARAMETER_DIRECTIONS = {
@@ -113,6 +114,16 @@ class Connection {
                 query: command,
                 params: params,
                 type: COMMAND_TYPES.PROCEDURE
+            }
+        ]);
+    }
+
+    procedureScalar(command, params) {
+        return executePromise(this.connectionString, this.connectionType, [
+            {
+                query: command,
+                params: params,
+                type: COMMAND_TYPES.PROCEDURE_SCALAR
             }
         ]);
     }
