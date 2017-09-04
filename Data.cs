@@ -42,7 +42,7 @@ public class Startup
                                 return await ExecuteNonQuery(command, com);
                             case JsQueryTypes.procedure:
                                 return await ExecuteProcedure(command, com);
-                            case JsQueryTypes.procedureScalar:
+                            case JsQueryTypes.procedure_scalar:
                                 return await ExecuteProcedureScalar(command, com);
                             default:
                                 throw new NotSupportedException("Unsupported type of database command. Only 'query', 'scalar', 'command' and 'procedure' are supported.");
@@ -182,7 +182,7 @@ public class Startup
                     case JsQueryTypes.procedure:
                         await ExecuteProcedure(dbCommand, jsCommand, prevResult);
                         break;
-                    case JsQueryTypes.procedureScalar:
+                    case JsQueryTypes.procedure_scalar:
                         await ExecuteProcedureScalar(dbCommand, jsCommand, prevResult);
                         break;
                     default:
@@ -301,7 +301,7 @@ public enum JsQueryTypes
     scalar,
     command,
     procedure,
-    procedureScalar
+    procedure_scalar
 }
 
 public enum JsConnectionTypes

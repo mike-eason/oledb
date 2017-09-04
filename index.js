@@ -6,7 +6,7 @@ const COMMAND_TYPES = {
     SCALAR: 'scalar',
     COMMAND: 'command',
     PROCEDURE: 'procedure',
-    PROCEDURE_SCALAR: 'procedureScalar'
+    PROCEDURE_SCALAR: 'procedure_scalar'
 };
 
 const PARAMETER_DIRECTIONS = {
