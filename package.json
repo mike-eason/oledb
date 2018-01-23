@@ -1,7 +1,7 @@
 {
-  "name": "oledb",
-  "version": "1.5.1",
-  "description": "Uses Edge.js to connect to an ADO.NET Databases.",
+  "name": "oledb-electron",
+  "version": "1.0.0",
+  "description": "Uses Edge.js to connect to an ADO.NET Databases, compatible with Electron.",
   "main": "index.js",
   "scripts": {
     "test": "tap test.js"
@@ -9,7 +9,7 @@
   "author": "Mike Eason",
   "license": "MIT",
   "dependencies": {
-    "edge": "^6.5.1"
+    "electron-edge": "^6.5.5"
   },
   "devDependencies": {
     "mock-require": "^2.0.2",
