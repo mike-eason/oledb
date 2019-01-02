@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![tips](https://img.shields.io/badge/tips-bitcoin-brightgreen.svg)](https://www.coinbase.com/blahyourhamster)
 
-A small **promise based** module which uses [Edge](https://github.com/tjanczuk/edge) to connect and execute queries for a 
+A small **promise based** module which uses [Edge-JS](https://github.com/agracio/edge-js) to connect and execute queries for a 
 [OLE DB](https://en.wikipedia.org/wiki/OLE_DB), [ODBC](https://en.wikipedia.org/wiki/Open_Database_Connectivity) or [SQL](https://en.wikipedia.org/wiki/SQL) database.
 
 ## Example
