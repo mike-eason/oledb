@@ -1,6 +1,6 @@
 {
   "name": "oledb-electron",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Uses Edge.js to connect to an ADO.NET Databases, compatible with Electron.",
   "main": "index.js",
   "scripts": {
