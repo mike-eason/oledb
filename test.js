@@ -6,7 +6,7 @@ const connectionString = 'mydatabase.dbc';
 /*
     Mock edge.js so we can check the options passed in.
 */
-mock('edge', {
+mock('edge-js', {
     func(filePath) {
         return (options, callback) => {
             if (options.constring != connectionString)
