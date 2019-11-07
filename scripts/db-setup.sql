@@ -1,6 +1,6 @@
 USE [master]
 GO
-CREATE DATABASE [oledb-test]GO
+CREATE DATABASE [oledb-test]
 ALTER DATABASE [oledb-test] SET COMPATIBILITY_LEVEL = 140
 GO
 IF (1 = FULLTEXTSERVICEPROPERTY('IsFullTextInstalled'))
