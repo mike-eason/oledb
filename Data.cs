@@ -230,7 +230,7 @@ public class Startup
                     result[i] = null;
                 else if (type == typeof(byte[]) || type == typeof(char[]))
                     result[i] = Convert.ToBase64String((byte[])result[i]);
-                else if (type == typeof(Guid) || type == typeof(DateTime))
+                else if (type == typeof(Guid))
                     result[i] = result[i].ToString();
                 else if (type == typeof(IDataReader))
                     result[i] = "<IDataReader>";
