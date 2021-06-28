@@ -9,7 +9,7 @@
   "author": "Mike Eason",
   "license": "MIT",
   "dependencies": {
-    "edge-js": "^11.3.0"
+    "edge-js": "^15.5.2"
   },
   "devDependencies": {
     "mock-require": "^2.0.2",
