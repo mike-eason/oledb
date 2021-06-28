@@ -33,6 +33,8 @@ function executePromise(constring, contype, commands) {
     for(let i = 0; i < commands.length; i++) {
         let command = commands[i];
 
+        if (!command)
+            return Promise.reject("Command object must be defined.")
         if (command.query == null || command.query.length === 0)
             return Promise.reject('Command string cannot be null or empty.');
         if (command.params != null && !Array.isArray(command.params))
