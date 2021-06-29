@@ -5,7 +5,7 @@ export function sqlConnection(connectionString: string): Connection;
 declare class Connection {
     constructor(constring: string, contype: string | null);
 
-    query<EntityType = QueryResult>(
+    query<EntityType = Record<string, FieldValue>>(
         command: string,
         params?: CommandParameter | CommandParameter[]
     ): Promise<CommandResult<EntityType[][]>>;
@@ -25,7 +25,13 @@ declare class Connection {
         command: string,
         params?: CommandParameter | CommandParameter[]
     ): Promise<CommandResult<FieldType>>;
-    transaction(commands: CommandData[]): Promise<CommandResult<number>[]>;
+    transaction(
+        commands: {
+            query: string;
+            params?: CommandParameter | CommandParameter[];
+            type?: CommandType;
+        }[]
+    ): Promise<CommandResult<number>[]>;
 }
 
 type CommandParameter = unknown | CommandParameterOptions;
@@ -40,14 +46,8 @@ interface CommandParameterOptions {
     size?: Uint8Array;
 }
 
-interface CommandData {
-    query: string;
-    params?: CommandParameter | CommandParameter[];
-    type?: CommandType;
-}
-
 type FieldValue = string | boolean | number | Date | null;
-type QueryResult = Record<string, FieldValue>;
+
 interface CommandResult<Result> {
     query: string;
     type: CommandType;
