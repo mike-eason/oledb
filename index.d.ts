@@ -29,7 +29,7 @@ declare class Connection {
         commands: {
             query: string;
             params?: CommandParameter | CommandParameter[];
-            type?: CommandType;
+            type?: COMMAND_TYPES;
         }[]
     ): Promise<CommandResult<number>[]>;
 }
@@ -39,7 +39,7 @@ type CommandParameter = unknown | CommandParameterOptions;
 interface CommandParameterOptions {
     name?: string;
     value?: unknown;
-    direction?: ParameterDirection;
+    direction?: PARAMETER_DIRECTIONS;
     isNullable?: boolean;
     precision?: Uint8Array;
     scale?: Uint8Array;
@@ -50,22 +50,22 @@ type FieldValue = string | boolean | number | Date | null;
 
 interface CommandResult<Result> {
     query: string;
-    type: CommandType;
+    type: COMMAND_TYPES;
     params: CommandParameter[];
     result: Result;
 }
 
-export enum CommandType {
-    Query = "query",
-    Scalar = "scalar",
-    Command = "command",
-    Procedure = "procedure",
-    ProcedureScalar = "procedure_scalar",
+export enum COMMAND_TYPES {
+    QUERY = "query",
+    SCALAR = "scalar",
+    COMMAND = "command",
+    PROCEDURE = "procedure",
+    PROCEDURE_SCALAR = "procedure_scalar",
 }
 
-export enum ParameterDirection {
-    Input = 1,
-    Output = 2,
-    InputOutput = 3,
-    ReturnValue = 6,
+export enum PARAMETER_DIRECTIONS {
+    INPUT = 1,
+    OUTPUT = 2,
+    INPUT_OUTPUT = 3,
+    RETURN_VALUE = 6,
 }
