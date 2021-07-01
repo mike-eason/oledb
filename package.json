@@ -21,6 +21,8 @@
   },
   "files": [
     "index.js",
-    "Data.cs"
-  ]
+    "Data.cs",
+    "index.d.ts"
+  ],
+  "types": "index.d.ts"
 }
